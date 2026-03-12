@@ -4,7 +4,6 @@ SensorManager::SensorManager(int pin, int type) : dht(pin, type) {}
 
 void SensorManager::begin() {
     dht.begin();
-    delay(2000);
 }
 
 bool SensorManager::readSensors() {

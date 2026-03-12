@@ -4,13 +4,21 @@
 #include <Arduino.h>
 
 //  Pin Definitions 
-const int PIN_DHT      = 26;   
-const int PIN_RGB_R    = 18;  
-const int PIN_RGB_G    = 21;  
-const int PIN_RGB_B    = 19;  
-const int PIN_BUZZER   = 22;  
-const int PIN_BTN_MODE = 32;  
-const int PIN_BTN_STOP = 33;  
+const int PIN_DHT      = 4;   //humidity/temp sensor
+const int PIN_RGB_R    = 15;  // red
+const int PIN_RGB_G    = 21;  // green
+const int PIN_RGB_B    = 19;  // blue
+const int PIN_BUZZER   = 25;  // buzzer
+const int PIN_BTN_MODE = 32;  // button mode switch
+const int PIN_BTN_STOP = 33;  // button state
+const int PIN_LDR      = 34;  // Photoresistor
+
+// Screen Labels (already attached to board)
+const int TFT_CS       = 5;   // Chip Select
+const int TFT_DC       = 2;   // Data/Command
+const int TFT_RST      = 12;  // reset
+const int TFT_MOSI     = 23;  // SI (Serial In)
+const int TFT_SCLK     = 18;  // SCK (Clock)
 
 //  Struct Def
 struct Thresholds {

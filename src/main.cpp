@@ -1,111 +1,116 @@
 #include <Arduino.h>
 #include "Constants.h"
 #include "SensorManager.h"
+#include "AlertManager.h"
+#include "DisplayManager.h"
 
-SensorManager sensorMgr(PIN_DHT, DHT11);
+// 1 startup
+SensorManager sensorMgr(PIN_DHT, DHT22); 
+AlertManager alertMgr;
+DisplayManager displayMgr;
 
-// FEATURE B: Memory logging (volatile)
-// 
-const int MAX_LOGS = 2880; // 24 hours at 30s intervals
+// Data Logging = Feature B
+const int MAX_LOGS = 240; // 2 hours of data
 struct LogRecord {
     float temp;
     float hum;
 };
 LogRecord logBuffer[MAX_LOGS];
-int logHead = 0; // Tracks where we its writting in the array
+int logHead = 0; 
 
-// timing variables
- 
+//  Timing and State Variables 
 unsigned long previousSensorRead = 0;
 unsigned long previousSerialOutput = 0;
 unsigned long previousDataLog = 0;
 
-void setup() {
-    Serial.begin(115200);
-    sensorMgr.begin();
+// Store values globally so all timers can use them
+float currentT = 0.0;
+float currentH = 0.0;
+bool isSafe = true;
 
-    pinMode(PIN_RGB_R, OUTPUT);
-    pinMode(PIN_RGB_G, OUTPUT);
-    pinMode(PIN_RGB_B, OUTPUT);
+struct Peaks {
+    float maxTemp;
+    float maxHum;
+};
 
-    Serial.println("System Initialized. Starting Feature A & B.");
-
-    // Warm up the DHT11 sensor
-    delay(2000); 
-}
-
-// Function for Feature B: Checks if value is above/below/within 
+//  Helper Functions 
 String getRangeStatus(float value, float minVal, float maxVal) {
     if (value < minVal) return "BELOW";
     if (value > maxVal) return "ABOVE";
     return "WITHIN";
 }
 
+Peaks getPeakValues() {
+    float highT = -99.0;
+    float highH = -99.0;
+    int recordsToScan = (logHead < 240) ? logHead : 240;
+
+    for (int i = 0; i < recordsToScan; i++) {
+        int index = (logHead - 1 - i + MAX_LOGS) % MAX_LOGS;
+        if (logBuffer[index].temp > highT) highT = logBuffer[index].temp;
+        if (logBuffer[index].hum > highH) highH = logBuffer[index].hum;
+    }
+    return {highT, highH};
+}
+
+void setup() {
+    Serial.begin(115200);
+    
+    // Boot up all our separate hardware managers
+    sensorMgr.begin();
+    alertMgr.begin();
+    displayMgr.begin();
+
+    Serial.println("System Initialized - Modular Architecture Ready");
+    delay(2000); 
+}
+
 void loop() {
-    // Get the current "stopwatch" time
     unsigned long currentMillis = millis();
 
-    // ---------------------------------------------------------
-    // 1. FEATURE A: Core Loop (Runs every 2 seconds)
-    // ---------------------------------------------------------
+    // 1 Feature A and C: Sensor Reading and Dashboard
     if (currentMillis - previousSensorRead >= 2000) {
         previousSensorRead = currentMillis;
         
         if (sensorMgr.readSensors()) {
-            if (sensorMgr.isEnvironmentSafe(STD_MODE)) {
-                digitalWrite(PIN_RGB_R, LOW);
-                digitalWrite(PIN_RGB_G, HIGH); 
-                digitalWrite(PIN_RGB_B, LOW);
+            currentT = sensorMgr.getHumidity() + 8.5; 
+            currentH = sensorMgr.getTemperature();    
+            
+            isSafe = (currentT >= STD_MODE.tempMin && currentT <= STD_MODE.tempMax &&
+                      currentH >= STD_MODE.humMin && currentH <= STD_MODE.humMax);
+
+            Peaks p = getPeakValues();
+            
+            displayMgr.updateDashboard(currentT, currentH, isSafe, p.maxTemp, p.maxHum);
+
+            if (isSafe) {
+                alertMgr.setNormalState();
             } else {
-                digitalWrite(PIN_RGB_R, HIGH);
-                digitalWrite(PIN_RGB_G, LOW);
-                digitalWrite(PIN_RGB_B, LOW);
+                alertMgr.triggerUnsafeAlarm();
             }
-        } else {
-            // Blue LED for sensor error
-            digitalWrite(PIN_RGB_R, LOW);
-            digitalWrite(PIN_RGB_G, LOW);
-            digitalWrite(PIN_RGB_B, HIGH);
         }
     }
 
-    // ---------------------------------------------------------
-    // 2. FEATURE B: Serial Debug Output (Runs every 5 seconds) 
-    // ---------------------------------------------------------
+    // 2 Feature B: Serial Debug 
     if (currentMillis - previousSerialOutput >= INTERVAL_SERIAL) {
         previousSerialOutput = currentMillis;
-        
-        float t = sensorMgr.getTemperature();
-        float h = sensorMgr.getHumidity();
-        
-        Serial.print("[5s DEBUG] Temp: ");
-        Serial.print(t);
-        Serial.print("C (");
-        Serial.print(getRangeStatus(t, STD_MODE.tempMin, STD_MODE.tempMax));
-        Serial.print(") | Hum: ");
-        Serial.print(h);
-        Serial.print("% (");
-        Serial.print(getRangeStatus(h, STD_MODE.humMin, STD_MODE.humMax));
-        Serial.println(")");
+        int light = analogRead(PIN_LDR);
+
+        Serial.print("[5s DEBUG] T: "); Serial.print(currentT);
+        Serial.print("C ("); Serial.print(getRangeStatus(currentT, STD_MODE.tempMin, STD_MODE.tempMax));
+        Serial.print(") | H: "); Serial.print(currentH);
+        Serial.print("% ("); Serial.print(getRangeStatus(currentH, STD_MODE.humMin, STD_MODE.humMax));
+        Serial.print(") | LDR: "); Serial.println(light);
     }
 
-    // ---------------------------------------------------------
-    // 3. FEATURE B: Data Logging (Runs every 30 seconds) 
-    // ---------------------------------------------------------
+    // 3 FEATURE B: Data Logging 
     if (currentMillis - previousDataLog >= INTERVAL_LOGGING) {
         previousDataLog = currentMillis;
         
-        // Save current values to the buffer
-        logBuffer[logHead].temp = sensorMgr.getTemperature();
-        logBuffer[logHead].hum = sensorMgr.getHumidity();
+        // Save values to memory
+        logBuffer[logHead].temp = currentT;
+        logBuffer[logHead].hum = currentH;
         
-        Serial.print("[30s LOG] Data saved to memory slot: ");
-        Serial.println(logHead);
-
-        // Move the head forward. If we hit 2880, loop back to 0 
-        logHead++;
-        if (logHead >= MAX_LOGS) {
-            logHead = 0; 
-        }
+        logHead = (logHead + 1) % MAX_LOGS;
     }
 }

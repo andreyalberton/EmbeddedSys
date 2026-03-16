@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 //  Pin Definitions 
-const int PIN_DHT      = 4;   //humidity/temp sensor
+const int PIN_DHT      = 4;   //humidity and temp sensor
 const int PIN_RGB_R    = 15;  // red
 const int PIN_RGB_G    = 21;  // green
 const int PIN_RGB_B    = 19;  // blue
@@ -13,7 +13,7 @@ const int PIN_BTN_MODE = 32;  // button mode switch
 const int PIN_BTN_STOP = 33;  // button state
 const int PIN_LDR      = 34;  // Photoresistor
 
-// Screen Labels (already attached to board)
+// Screen Labels 
 const int TFT_CS       = 5;   // Chip Select
 const int TFT_DC       = 2;   // Data/Command
 const int TFT_RST      = 12;  // reset
@@ -28,7 +28,7 @@ struct Thresholds {
     float humMax;
 };
 
-// Monitoring Thresholds 
+// Monitoring  
 const Thresholds STD_MODE = {18.0, 35.0, 20.0, 60.0};
 const Thresholds HIGH_SENS_MODE = {15.0, 25.0, 30.0, 55.0};
 

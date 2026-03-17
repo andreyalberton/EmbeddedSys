@@ -3,11 +3,13 @@
 #include "SensorManager.h"
 #include "AlertManager.h"
 #include "DisplayManager.h"
+#include "ModeManager.h" //  Feature D import
 
 // 1 startup
-SensorManager sensorMgr(PIN_DHT, DHT22); 
+SensorManager sensorMgr(PIN_DHT, DHT11); 
 AlertManager alertMgr;
 DisplayManager displayMgr;
+ModeManager modeMgr; //  Feature D 
 
 // Data Logging = Feature B
 const int MAX_LOGS = 240; // 2 hours of data
@@ -60,15 +62,19 @@ void setup() {
     sensorMgr.begin();
     alertMgr.begin();
     displayMgr.begin();
+    modeMgr.begin(); // --- FEATURE D ---
 
-    Serial.println("System Initialized - Modular Architecture Ready");
+    Serial.println("System Initialized - Features A, B, C, and D Ready");
     delay(2000); 
 }
 
 void loop() {
     unsigned long currentMillis = millis();
 
-    // 1 Feature A and C: Sensor Reading and Dashboard
+    //  Feature D: Check Buttons 
+    modeMgr.checkButtons();
+
+    // 1 Feature A, C, and D: Sensor Reading and Dashboard
     if (currentMillis - previousSensorRead >= 2000) {
         previousSensorRead = currentMillis;
         
@@ -76,14 +82,26 @@ void loop() {
             currentT = sensorMgr.getHumidity() + 8.5; 
             currentH = sensorMgr.getTemperature();    
             
-            isSafe = (currentT >= STD_MODE.tempMin && currentT <= STD_MODE.tempMax &&
-                      currentH >= STD_MODE.humMin && currentH <= STD_MODE.humMax);
-
-            Peaks p = getPeakValues();
+            // Feature D: Get the limits for the mode we are currently in
+            Thresholds activeLimits = modeMgr.getActiveThresholds();
             
+            isSafe = (currentT >= activeLimits.tempMin && currentT <= activeLimits.tempMax &&
+                      currentH >= activeLimits.humMin && currentH <= activeLimits.humMax);
+
+            // FEATURE D: Tell the manager if it's safe so it can run the lockout timer
+            modeMgr.updateSafetyState(isSafe);
+
+            // Feature C: Update Screen
+            Peaks p = getPeakValues();
             displayMgr.updateDashboard(currentT, currentH, isSafe, p.maxTemp, p.maxHum);
 
-            if (isSafe) {
+            // Feature A & D: Alerts Logic
+            SystemMode currentSysMode = modeMgr.getCurrentMode();
+            
+            if (currentSysMode == LOCKOUT) {
+                // If locked out, force the red alarm 
+                alertMgr.triggerUnsafeAlarm();
+            } else if (isSafe) {
                 alertMgr.setNormalState();
             } else {
                 alertMgr.triggerUnsafeAlarm();
@@ -95,12 +113,19 @@ void loop() {
     if (currentMillis - previousSerialOutput >= INTERVAL_SERIAL) {
         previousSerialOutput = currentMillis;
         int light = analogRead(PIN_LDR);
+        Thresholds activeLimits = modeMgr.getActiveThresholds();
 
         Serial.print("[5s DEBUG] T: "); Serial.print(currentT);
-        Serial.print("C ("); Serial.print(getRangeStatus(currentT, STD_MODE.tempMin, STD_MODE.tempMax));
+        Serial.print("C ("); Serial.print(getRangeStatus(currentT, activeLimits.tempMin, activeLimits.tempMax));
         Serial.print(") | H: "); Serial.print(currentH);
-        Serial.print("% ("); Serial.print(getRangeStatus(currentH, STD_MODE.humMin, STD_MODE.humMax));
-        Serial.print(") | LDR: "); Serial.println(light);
+        Serial.print("% ("); Serial.print(getRangeStatus(currentH, activeLimits.humMin, activeLimits.humMax));
+        Serial.print(") | LDR: "); Serial.print(light);
+        
+        SystemMode currentSysMode = modeMgr.getCurrentMode();
+        Serial.print(" | MODE: ");
+        if (currentSysMode == STD) Serial.println("STD");
+        else if (currentSysMode == HIGH_SENS) Serial.println("HIGH_SENS");
+        else Serial.println("LOCKOUT!!!");
     }
 
     // 3 FEATURE B: Data Logging 

@@ -13,6 +13,10 @@ const int PIN_BTN_MODE = 32;  // button mode switch
 const int PIN_BTN_STOP = 33;  // button state
 const int PIN_LDR      = 34;  // Photoresistor
 
+#define PIN_ENC_CLK 26
+#define PIN_ENC_DT 27
+#define PIN_ENC_SW 14
+
 // Screen Labels 
 const int TFT_CS       = 5;   // Chip Select
 const int TFT_DC       = 2;   // Data/Command

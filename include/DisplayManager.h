@@ -15,8 +15,12 @@ public:
     // Initialise the TFT 
     DisplayManager();
     void begin();
+    
     // Passing the data it needs to draw the dashboard
     void updateDashboard(float temp, float hum, bool isSafe, float peakTemp, float peakHum);
+    
+    //  FEATURE E: The Edit Screen 
+    void showEditScreen(String label, float value);
 };
 
 #endif

@@ -9,6 +9,7 @@ void DisplayManager::begin() {
 }
 
 void DisplayManager::updateDashboard(float temp, float hum, bool isSafe, float peakTemp, float peakHum) {
+    // Reset to top left
     tft.setCursor(0, 0);
     tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK); 
     tft.setTextSize(1);
@@ -36,4 +37,34 @@ void DisplayManager::updateDashboard(float temp, float hum, bool isSafe, float p
         tft.setTextColor(ST77XX_RED, ST77XX_BLACK);
         tft.println("\nSTATUS: UNSAFE   ");
     }
+}
+
+//  FEATURE E: The Distinct Edit Screen 
+void DisplayManager::showEditScreen(String label, float value) {
+
+    // Header
+    tft.setCursor(5, 10);
+    tft.setTextColor(ST77XX_MAGENTA, ST77XX_BLACK); 
+    tft.setTextSize(2);
+    tft.println("USER MODE      "); 
+
+    // Labels
+    tft.setCursor(5, 50);
+    tft.setTextSize(1);
+    tft.setTextColor(ST77XX_YELLOW, ST77XX_BLACK);
+    tft.print(label);
+    tft.println("          "); // Blank spaces to erase leftover letters
+
+    // The changing value 
+    tft.setCursor(5, 75);
+    tft.setTextColor(ST77XX_WHITE, ST77XX_BLACK);
+    tft.setTextSize(3); 
+    tft.print(value, 1); 
+    tft.print("   "); // Blank spaces to erase leftover numbers
+
+    // Instructions at the bottom
+    tft.setCursor(5, 140);
+    tft.setTextSize(1);
+    tft.setTextColor(ST77XX_CYAN, ST77XX_BLACK);
+    tft.print("Turn -> Adjust ");
 }

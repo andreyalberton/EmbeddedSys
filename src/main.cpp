@@ -3,16 +3,19 @@
 #include "SensorManager.h"
 #include "AlertManager.h"
 #include "DisplayManager.h"
-#include "ModeManager.h" //  Feature D import
+#include "ModeManager.h"
+#include "EditManager.h" 
 
-// 1 startup
+bool wasEditing = false;
+
 SensorManager sensorMgr(PIN_DHT, DHT11); 
 AlertManager alertMgr;
 DisplayManager displayMgr;
-ModeManager modeMgr; //  Feature D 
+ModeManager modeMgr; 
+EditManager editMgr; 
 
 // Data Logging = Feature B
-const int MAX_LOGS = 240; // 2 hours of data
+const int MAX_LOGS = 240;
 struct LogRecord {
     float temp;
     float hum;
@@ -20,22 +23,24 @@ struct LogRecord {
 LogRecord logBuffer[MAX_LOGS];
 int logHead = 0; 
 
-//  Timing and State Variables 
+// Timing and State Variables 
 unsigned long previousSensorRead = 0;
 unsigned long previousSerialOutput = 0;
 unsigned long previousDataLog = 0;
 
-// Store values globally so all timers can use them
 float currentT = 0.0;
 float currentH = 0.0;
 bool isSafe = true;
+
+// Track the old mode to know if the user pressed the standard Mode Button
+SystemMode lastSysMode = STD; 
 
 struct Peaks {
     float maxTemp;
     float maxHum;
 };
 
-//  Helper Functions 
+// Helper Functions 
 String getRangeStatus(float value, float minVal, float maxVal) {
     if (value < minVal) return "BELOW";
     if (value > maxVal) return "ABOVE";
@@ -58,23 +63,44 @@ Peaks getPeakValues() {
 void setup() {
     Serial.begin(115200);
     
-    // Boot up all our separate hardware managers
     sensorMgr.begin();
     alertMgr.begin();
     displayMgr.begin();
-    modeMgr.begin(); // --- FEATURE D ---
+    modeMgr.begin(); 
+    editMgr.begin(); // Boot the encoder
 
-    Serial.println("System Initialized - Features A, B, C, and D Ready");
+    Serial.println("System Initialized - Features A, B, C, D, and E Ready");
     delay(2000); 
 }
 
 void loop() {
     unsigned long currentMillis = millis();
 
-    //  Feature D: Check Buttons 
+    // Check all physical buttons continuously
     modeMgr.checkButtons();
+    editMgr.update(); // Feature E: Reads the rotary knob
 
-    // 1 Feature A, C, and D: Sensor Reading and Dashboard
+    if (modeMgr.getCurrentMode() != lastSysMode) {
+        editMgr.clearUserMode();
+        lastSysMode = modeMgr.getCurrentMode();
+    }
+
+    if (editMgr.isEditing()) {
+        if (!wasEditing) {
+            displayMgr.begin(); // Wipe screen black ONCE on entry
+            wasEditing = true;
+        }
+        displayMgr.showEditScreen(editMgr.getActiveEditLabel(), editMgr.getActiveEditValue());
+    } else if (wasEditing) {
+        displayMgr.begin(); // Wipe screen black on exit
+        wasEditing = false;
+        
+        // Force an immediate draw of the normal dashboard so it isn't blank
+        Peaks p = getPeakValues();
+        displayMgr.updateDashboard(currentT, currentH, isSafe, p.maxTemp, p.maxHum);
+    }
+
+    // 1 Sensor Reading and Dashboard 
     if (currentMillis - previousSensorRead >= 2000) {
         previousSensorRead = currentMillis;
         
@@ -82,24 +108,20 @@ void loop() {
             currentT = sensorMgr.getHumidity() + 8.5; 
             currentH = sensorMgr.getTemperature();    
             
-            // Feature D: Get the limits for the mode we are currently in
-            Thresholds activeLimits = modeMgr.getActiveThresholds();
+            Thresholds activeLimits = editMgr.isUserModeActive() ? editMgr.getCustomLimits() : modeMgr.getActiveThresholds();
             
             isSafe = (currentT >= activeLimits.tempMin && currentT <= activeLimits.tempMax &&
                       currentH >= activeLimits.humMin && currentH <= activeLimits.humMax);
 
-            // FEATURE D: Tell the manager if it's safe so it can run the lockout timer
             modeMgr.updateSafetyState(isSafe);
 
-            // Feature C: Update Screen
-            Peaks p = getPeakValues();
-            displayMgr.updateDashboard(currentT, currentH, isSafe, p.maxTemp, p.maxHum);
+            if (!editMgr.isEditing()) {
+                Peaks p = getPeakValues();
+                displayMgr.updateDashboard(currentT, currentH, isSafe, p.maxTemp, p.maxHum);
+            }
 
-            // Feature A & D: Alerts Logic
             SystemMode currentSysMode = modeMgr.getCurrentMode();
-            
             if (currentSysMode == LOCKOUT) {
-                // If locked out, force the red alarm 
                 alertMgr.triggerUnsafeAlarm();
             } else if (isSafe) {
                 alertMgr.setNormalState();
@@ -109,11 +131,12 @@ void loop() {
         }
     }
 
-    // 2 Feature B: Serial Debug 
+    // 2 Debug Output
     if (currentMillis - previousSerialOutput >= INTERVAL_SERIAL) {
         previousSerialOutput = currentMillis;
         int light = analogRead(PIN_LDR);
-        Thresholds activeLimits = modeMgr.getActiveThresholds();
+        
+        Thresholds activeLimits = editMgr.isUserModeActive() ? editMgr.getCustomLimits() : modeMgr.getActiveThresholds();
 
         Serial.print("[5s DEBUG] T: "); Serial.print(currentT);
         Serial.print("C ("); Serial.print(getRangeStatus(currentT, activeLimits.tempMin, activeLimits.tempMax));
@@ -121,21 +144,18 @@ void loop() {
         Serial.print("% ("); Serial.print(getRangeStatus(currentH, activeLimits.humMin, activeLimits.humMax));
         Serial.print(") | LDR: "); Serial.print(light);
         
-        SystemMode currentSysMode = modeMgr.getCurrentMode();
         Serial.print(" | MODE: ");
-        if (currentSysMode == STD) Serial.println("STD");
-        else if (currentSysMode == HIGH_SENS) Serial.println("HIGH_SENS");
+        if (editMgr.isUserModeActive()) Serial.println("USER_CUSTOM");
+        else if (modeMgr.getCurrentMode() == STD) Serial.println("STD");
+        else if (modeMgr.getCurrentMode() == HIGH_SENS) Serial.println("HIGH_SENS");
         else Serial.println("LOCKOUT!!!");
     }
 
-    // 3 FEATURE B: Data Logging 
+    // 3 Data Logging 
     if (currentMillis - previousDataLog >= INTERVAL_LOGGING) {
         previousDataLog = currentMillis;
-        
-        // Save values to memory
         logBuffer[logHead].temp = currentT;
         logBuffer[logHead].hum = currentH;
-        
         logHead = (logHead + 1) % MAX_LOGS;
     }
 }

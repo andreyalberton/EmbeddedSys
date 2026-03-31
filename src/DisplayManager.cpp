@@ -39,7 +39,7 @@ void DisplayManager::updateDashboard(float temp, float hum, bool isSafe, float p
     }
 }
 
-//  FEATURE E: The Distinct Edit Screen 
+//  FEATURE E: The Edit Screen 
 void DisplayManager::showEditScreen(String label, float value) {
 
     // Header

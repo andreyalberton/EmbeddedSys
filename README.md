@@ -1,93 +1,48 @@
-# 2526-6231COMP-csmaalbe
+# Monitoring System 
 
+**Module:** 6231COMP - Embedded Systems  
 
+## Project Overview
+This project is an embedded system designed to monitor the environment of a CNC machine. It reads temperature and humidity data, logs historical peaks, and provides real-time alerts via an RGB LED, buzzer, and an TFT display. The program has features like = operational modes, including a safety lockout mechanism and an user mode controlled with the rotary encoder.
 
-## Getting started
+## Features Implemented
+This repository contains the completed implementation for the following core specification features:
+* **Feature A (Basic Loop):** Low-latency sensor reading with status indication.
+* **Feature B (Data & Serial Logging):** 240-record volatile memory buffer (2-hour peak tracking) and 5-second serial debug outputs.
+* **Feature C (Sounder & Output Display):** Integration of buzzer alerts and a live TFT dashboard showing current metrics, 2-hour peaks, and system status.
+* **Feature D (Inspection, Auto Lock-Out & Mode Selection):** Stateful mode management (`STD`, `HIGH_SENS`, `LOCKOUT`) via hardware interrupts/debounced buttons, including a 30-second continuous unsafe lockout trap.
+* **Feature E (User Editable Mode):** A dedicated UI screen allowing users to dial in custom Min/Max thresholds (0-50°C, 0-100%) using a Digilent PmodENC rotary encoder with strict phase-glitch and edge-detection debouncing.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Hardware Requirements
+* **MCU:** ESP32 Development Board
+* **Sensors:** DHT11 (Temperature & Humidity), LDR (Photoresistor)
+* **Display:** 1.8" TFT SPI Screen (ST7735)
+* **Inputs:** * Digilent PmodENC Rotary Encoder (with integrated push-button)
+  * 2x Tactile Push Buttons (Mode Switch & Stop/Reset)
+* **Outputs:** Common Cathode RGB LED, Active Buzzer
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## Software & Dependencies
+[cite_start]This project was built using **PlatformIO** on VSCode[cite: 28]. It heavily utilizes Object-Oriented C++ principles to decouple hardware polling from application logic (e.g., `DisplayManager`, `ModeManager`, `EditManager`).
 
-## Add your files
+**Required Libraries:**
+* `Adafruit GFX Library`
+* `Adafruit ST7735 and ST7789 Library`
+* *(Add your DHT sensor library here, e.g., `DHT sensor library by Adafruit`)*
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Application Entry & Compilation
+As per the project specification, the application entry point is located in `src/main.cpp`. 
+* **`setup()`:** Initializes serial communication, hardware pin modes, and boots all manager classes.
+* **`loop()`:** Executes the cyclic executive, delegating hardware polling to manager classes, handling instant UI overrides for the rotary encoder, and running the 2-second sensor reading timer.
 
-```
-cd existing_repo
-git remote add origin https://gitlab.com/a.alberton/2526-6231comp-csmaalbe.git
-git branch -M main
-git push -uf origin main
-```
+### Compile Instructions
+1. Open the project folder in **VSCode** with the **PlatformIO** extension installed.
+2. Ensure your ESP32 is connected via USB.
+3. Click the **PlatformIO: Build** button (the checkmark `✓` in the bottom toolbar) to compile the firmware.
+4. Click the **PlatformIO: Upload** button (the right arrow `→`) to flash the ESP32.
+5. Open the Serial Monitor (plug icon) and set the baud rate to `115200` to view the 5-second debug logs.
 
-## Integrate with your tools
-
-* [Set up project integrations](https://gitlab.com/a.alberton/2526-6231comp-csmaalbe/-/settings/integrations)
-
-## Collaborate with your team
-
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
-
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+## 🎮 Usage Guide
+* **Standard Operation:** The TFT will display live readings. If limits are exceeded, the buzzer and LED will alert you.
+* **Change Modes:** Press the Mode button (Pin 32) to swap between Standard and High-Sensitivity limits.
+* **Clear Lockout:** If the system enters Lockout mode, press and hold the Stop button (Pin 33).
+* **Set Custom Limits:** Click the Rotary Encoder knob to enter `USER_CUSTOM` mode. Turn the knob to adjust the boundaries, and click to cycle through the settings.

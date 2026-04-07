@@ -6,11 +6,12 @@ void SensorManager::begin() {
     dht.begin();
 }
 
+// Reads both values from the DHT11 — returns false if the sensor gives NaN
 bool SensorManager::readSensors() {
     float h = dht.readHumidity();
     float t = dht.readTemperature();
 
-    // Check if any reads failed
+    // Check if any reads failed (NaN = sensor error)
     if (isnan(h) || isnan(t)) {
         return false;
     }
@@ -20,8 +21,8 @@ bool SensorManager::readSensors() {
     return true;
 }
 
+// Returns true only if both temp and humidity are within the given limits
 bool SensorManager::isEnvironmentSafe(Thresholds limits) {
-    // Check if values are within the bounds
     if (currentTemp < limits.tempMin || currentTemp > limits.tempMax) return false;
     if (currentHum < limits.humMin || currentHum > limits.humMax) return false;
     return true;

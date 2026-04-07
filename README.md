@@ -1,48 +1,56 @@
-# Monitoring System 
+# CNC Machine Monitoring System
 
-**Module:** 6231COMP - Embedded Systems  
+**Module:** 6231COMP - Embedded Systems
 
 ## Project Overview
-This project is an embedded system designed to monitor the environment of a CNC machine. It reads temperature and humidity data, logs historical peaks, and provides real-time alerts via an RGB LED, buzzer, and an TFT display. The program has features like = operational modes, including a safety lockout mechanism and an user mode controlled with the rotary encoder.
 
-## Features Implemented
-This repository contains the completed implementation for the following core specification features:
-* **Feature A (Basic Loop):** Low-latency sensor reading with status indication.
-* **Feature B (Data & Serial Logging):** 240-record volatile memory buffer (2-hour peak tracking) and 5-second serial debug outputs.
-* **Feature C (Sounder & Output Display):** Integration of buzzer alerts and a live TFT dashboard showing current metrics, 2-hour peaks, and system status.
-* **Feature D (Inspection, Auto Lock-Out & Mode Selection):** Stateful mode management (`STD`, `HIGH_SENS`, `LOCKOUT`) via hardware interrupts/debounced buttons, including a 30-second continuous unsafe lockout trap.
-* **Feature E (User Editable Mode):** A dedicated UI screen allowing users to dial in custom Min/Max thresholds (0-50°C, 0-100%) using a Digilent PmodENC rotary encoder with strict phase-glitch and edge-detection debouncing.
+An embedded monitoring system for a CNC machine environment. It reads temperature and humidity from a DHT11 sensor, logs data into a 24-hour circular buffer, and gives real-time feedback through an RGB LED, piezo buzzer, and a TFT display. The system supports multiple operating modes, a safety lockout mechanism, and user-editable thresholds via a rotary encoder.
 
-## Hardware Requirements
-* **MCU:** ESP32 Development Board
-* **Sensors:** DHT11 (Temperature & Humidity), LDR (Photoresistor)
-* **Display:** 1.8" TFT SPI Screen (ST7735)
-* **Inputs:** * Digilent PmodENC Rotary Encoder (with integrated push-button)
-  * 2x Tactile Push Buttons (Mode Switch & Stop/Reset)
-* **Outputs:** Common Cathode RGB LED, Active Buzzer
+## Features
+
+* **Feature A (Basic Loop):** Non-blocking sensor reading every 2 seconds with status indication.
+* **Feature B (Data & Serial Logging):** 2880-record circular buffer (24 hours at 30-second intervals) with 2-hour peak tracking and 5-second serial debug output.
+* **Feature C (Sounder & Output Display):** Buzzer alerts and a live TFT dashboard showing current readings, 2-hour peaks, and system status.
+* **Feature D (Inspection, Auto Lock-Out & Mode Selection):** Four system modes (`STD`, `HIGH_SENS`, `INSPECTION`, `LOCKOUT`). Single press toggles STD/HIGH_SENS, double-click toggles Inspection mode, 5-second hold clears Lockout. Lockout triggers when 2+ unsafe episodes exceed 5 minutes cumulative within a 15-minute rolling window.
+* **Feature E (User Editable Mode):** Edit screen for setting custom Min/Max thresholds using the rotary encoder.
+
+## Hardware
+
+* **MCU:** ESP32-DevKitS 
+* **Sensors:** DHT11 (Temperature & Humidity) on GPIO 4, LDR (Photoresistor) on GPIO 34
+* **Display:** Adafruit 1.44" Color TFT (ST7735) via VSPI
+* **Input:** Digilent PmodENC Rotary Encoder (CLK GPIO 26, DT GPIO 27, SW GPIO 14), Mode Button on GPIO 32
+* **Output:** Common-cathode RGB LED (R GPIO 15, G GPIO 21, B GPIO 19), Piezo Buzzer on GPIO 25, TFT Backlight on GPIO 22
 
 ## Software & Dependencies
-[cite_start]This project was built using **PlatformIO** on VSCode[cite: 28]. It heavily utilizes Object-Oriented C++ principles to decouple hardware polling from application logic (e.g., `DisplayManager`, `ModeManager`, `EditManager`).
+
+Built with **PlatformIO** on VSCode. The firmware uses an OOP architecture with separate Manager classes (`SensorManager`, `DisplayManager`, `ModeManager`, `AlertManager`, `EditManager`) to keep hardware polling separate from application logic.
 
 **Required Libraries:**
+
 * `Adafruit GFX Library`
 * `Adafruit ST7735 and ST7789 Library`
-* *(Add your DHT sensor library here, e.g., `DHT sensor library by Adafruit`)*
+* `DHT sensor library by Adafruit`
 
-## Application Entry & Compilation
-As per the project specification, the application entry point is located in `src/main.cpp`. 
-* **`setup()`:** Initializes serial communication, hardware pin modes, and boots all manager classes.
-* **`loop()`:** Executes the cyclic executive, delegating hardware polling to manager classes, handling instant UI overrides for the rotary encoder, and running the 2-second sensor reading timer.
+## Building and Flashing
 
-### Compile Instructions
-1. Open the project folder in **VSCode** with the **PlatformIO** extension installed.
-2. Ensure your ESP32 is connected via USB.
-3. Click the **PlatformIO: Build** button (the checkmark `✓` in the bottom toolbar) to compile the firmware.
-4. Click the **PlatformIO: Upload** button (the right arrow `→`) to flash the ESP32.
-5. Open the Serial Monitor (plug icon) and set the baud rate to `115200` to view the 5-second debug logs.
+Entry point is `src/main.cpp`.
 
-## 🎮 Usage Guide
-* **Standard Operation:** The TFT will display live readings. If limits are exceeded, the buzzer and LED will alert you.
-* **Change Modes:** Press the Mode button (Pin 32) to swap between Standard and High-Sensitivity limits.
-* **Clear Lockout:** If the system enters Lockout mode, press and hold the Stop button (Pin 33).
-* **Set Custom Limits:** Click the Rotary Encoder knob to enter `USER_CUSTOM` mode. Turn the knob to adjust the boundaries, and click to cycle through the settings.
+* **`setup()`** initialises serial at 115200, sets up pin modes, and boots all Manager classes.
+* **`loop()`** runs a cyclic order using `millis()` — no `delay()` calls. It polls buttons and the encoder every iteration, reads sensors every 2 seconds, logs data every 30 seconds, and prints debug info every 5 seconds.
+
+### Steps
+
+1. Open the project in VSCode with the PlatformIO extension.
+2. Connect your ESP32 via USB.
+3. Click **Build**  to compile.
+4. Click **Upload**  to flash the board.
+5. Open the Serial Monitor and set baud to `115200` to see debug output.
+
+## Usage
+
+* **Normal operation:** The TFT shows live temperature, humidity, mode, and safety status. Green LED means all clear.
+* **Change mode:** Short press the Mode Button (GPIO 32) to swap between Standard and High Sensitivity.
+* **Inspection mode:** Double-click the Mode Button to pause all threshold checking. Double-click again to resume.
+* **Lockout:** If the system locks out, press and hold the Mode Button for 5 seconds to clear it.
+* **Custom thresholds:** Click the encoder knob to enter edit mode. Turn to adjust values, click to cycle through Temp Min, Temp Max, Hum Min, Hum Max. After the last field it saves and activates User Mode.

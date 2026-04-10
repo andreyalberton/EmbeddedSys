@@ -57,7 +57,7 @@ void EditManager::update() {
 
             float change = 0.0;
 
-            if (digitalRead(PIN_ENC_DT) == HIGH) {
+            if (digitalRead(PIN_ENC_DT) == LOW) {
                 change = 1.0;   // Clockwise  (+)
             } else {
                 change = -1.0;  // Counter-CW (-)
